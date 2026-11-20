@@ -346,7 +346,7 @@ export class GatekeeperServer {
             proof,
             publicSignals,
             this.cfg.gatekeeperVkHash,
-            Math.max(0, remainingMs()),
+            budgetMs,
           );
           kurierJobId = r.jobId;
           kurierStatus = r.status;
