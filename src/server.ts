@@ -258,10 +258,6 @@ export class GatekeeperServer {
         issuedAtMs: Number.isFinite(issuedAtMs) ? issuedAtMs : null,
       });
 
-      // Replay gate: mark the reference the moment we accept the task, so
-      // a concurrent duplicate cannot slip through.
-      if (task.proof_tx) this.seen.mark(task.proof_tx);
-
       if (decision.decision === "APPROVE") {
         // Only expensive work (proving + Kurier) is gated on the remaining
         // budget. A REJECT decision below keeps its own reason even when
@@ -378,6 +374,13 @@ export class GatekeeperServer {
           (kurierStatus ? `, kurier: ${kurierStatus}` : "") +
           `, ${Date.now() - startedAt}ms)`,
       );
+      // Replay gate: mark the reference only once this task is finally
+      // APPROVED (proof verified locally, Kurier Finalized or disabled).
+      // Marking at accept time burned proof_tx on transient rejects
+      // (NOT_FINALIZED, TIMEOUT, PROOF_FAILED), so a legitimate retry was
+      // rejected PROOF_REUSED. REJECT paths never mark, so the same
+      // proof_tx stays usable for a corrected retry.
+      if (task.proof_tx) this.seen.mark(task.proof_tx);
       reply(
         {
           decision: "APPROVE",
